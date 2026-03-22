@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>予約・日程調整の完全自動化 - デモ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --black: #111;
+  --dark: #1a1a1a;
+  --gray-900: #222;
+  --gray-800: #2a2a2a;
+  --gray-700: #333;
+  --gray-600: #444;
+  --gray-500: #666;
+  --gray-400: #888;
+  --gray-300: #aaa;
+  --gray-200: #ccc;
+  --gray-100: #e0e0e0;
+  --white: #fff;
+  --accent: #c0c0c0;
+}
+
+body {
+  font-family: 'Noto Sans JP', 'Inter', sans-serif;
+  background: var(--black);
+  color: var(--gray-100);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+a { color: var(--gray-300); text-decoration: none; }
+a:hover { color: var(--white); }
+
+.back-link {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--gray-400);
+  transition: color 0.2s;
+}
+.back-link:hover { color: var(--white); }
+.back-link svg { width: 18px; height: 18px; }
+
+.page-header {
+  text-align: center;
+  padding: 60px 20px 20px;
+  max-width: 600px;
+}
+.page-header h1 {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--white);
+  margin-bottom: 8px;
+}
+.page-header p {
+  font-size: 14px;
+  color: var(--gray-400);
+  line-height: 1.6;
+}
+
+/* Chat Container */
+.chat-container {
+  width: 100%;
+  max-width: 420px;
+  margin: 20px auto 40px;
+  background: var(--dark);
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+  display: flex;
+  flex-direction: column;
+  height: 680px;
+}
+
+/* Chat Header (LINE-style) */
+.chat-header {
+  background: var(--gray-900);
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--gray-700);
+  flex-shrink: 0;
+}
+.chat-header .bot-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--gray-700);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.chat-header .bot-info h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--white);
+}
+.chat-header .bot-info span {
+  font-size: 11px;
+  color: var(--gray-500);
+}
+.online-dot {
+  width: 8px;
+  height: 8px;
+  background: #4a4a4a;
+  border-radius: 50%;
+  margin-left: auto;
+}
+.online-dot.active { background: var(--gray-300); }
+
+/* Chat Body */
+.chat-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  scroll-behavior: smooth;
+}
+.chat-body::-webkit-scrollbar { width: 4px; }
+.chat-body::-webkit-scrollbar-track { background: transparent; }
+.chat-body::-webkit-scrollbar-thumb { background: var(--gray-700); border-radius: 4px; }
+
+/* Messages */
+.message {
+  max-width: 80%;
+  padding: 10px 14px;
+  border-radius: 16px;
+  font-size: 14px;
+  line-height: 1.6;
+  animation: msgIn 0.3s ease;
+  word-break: break-word;
+}
+@keyframes msgIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.message.user {
+  align-self: flex-end;
+  background: var(--gray-600);
+  color: var(--white);
+  border-bottom-right-radius: 4px;
+}
+.message.bot {
+  align-self: flex-start;
+  background: var(--gray-800);
+  color: var(--gray-100);
+  border-bottom-left-radius: 4px;
+}
+
+.message .time {
+  font-size: 10px;
+  color: var(--gray-500);
+  margin-top: 4px;
+}
+.message.user .time { text-align: right; }
+
+/* Typing indicator */
+.typing {
+  align-self: flex-start;
+  display: flex;
+  gap: 4px;
+  padding: 12px 16px;
+  background: var(--gray-800);
+  border-radius: 16px;
+  border-bottom-left-radius: 4px;
+  animation: msgIn 0.3s ease;
+}
+.typing span {
+  width: 7px;
+  height: 7px;
+  background: var(--gray-500);
+  border-radius: 50%;
+  animation: typingDot 1.2s infinite;
+}
+.typing span:nth-child(2) { animation-delay: 0.2s; }
+.typing span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes typingDot {
+  0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-4px); }
+}
+
+/* Mini Calendar */
+.mini-calendar {
+  background: var(--gray-800);
+  border-radius: 12px;
+  padding: 12px;
+  align-self: flex-start;
+  max-width: 90%;
+  animation: msgIn 0.3s ease;
+}
+.mini-calendar .cal-header {
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gray-200);
+  margin-bottom: 8px;
+}
+.mini-calendar .cal-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  text-align: center;
+  font-size: 11px;
+  margin-bottom: 4px;
+  color: var(--gray-500);
+}
+.mini-calendar .cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+}
+.mini-calendar .cal-cell {
+  width: 36px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  border-radius: 6px;
+  color: var(--gray-400);
+}
+.mini-calendar .cal-cell.available {
+  color: var(--white);
+  background: var(--gray-700);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.mini-calendar .cal-cell.available:hover {
+  background: var(--gray-600);
+}
+.mini-calendar .cal-cell.selected {
+  background: var(--gray-500);
+  color: var(--white);
+}
+
+/* Time Slots */
+.time-slots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-self: flex-start;
+  max-width: 90%;
+  animation: msgIn 0.3s ease;
+}
+.time-slot {
+  padding: 8px 16px;
+  background: var(--gray-800);
+  border: 1px solid var(--gray-600);
+  border-radius: 20px;
+  font-size: 13px;
+  color: var(--gray-200);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.time-slot:hover {
+  background: var(--gray-700);
+  border-color: var(--gray-400);
+}
+
+/* Confirm Card */
+.confirm-card {
+  background: var(--gray-800);
+  border-radius: 12px;
+  padding: 16px;
+  align-self: flex-start;
+  max-width: 90%;
+  animation: msgIn 0.3s ease;
+}
+.confirm-card h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--white);
+  margin-bottom: 12px;
+}
+.confirm-card .detail-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  font-size: 13px;
+  border-bottom: 1px solid var(--gray-700);
+}
+.confirm-card .detail-row:last-of-type { border: none; }
+.confirm-card .detail-label { color: var(--gray-400); }
+.confirm-card .detail-value { color: var(--white); font-weight: 500; }
+.confirm-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+.confirm-btn {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s;
+}
+.confirm-btn.yes {
+  background: var(--white);
+  color: var(--black);
+}
+.confirm-btn.yes:hover { background: var(--gray-200); }
+.confirm-btn.no {
+  background: var(--gray-700);
+  color: var(--gray-300);
+}
+.confirm-btn.no:hover { background: var(--gray-600); }
+
+/* Automation Steps */
+.auto-steps {
+  align-self: flex-start;
+  max-width: 90%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: msgIn 0.3s ease;
+}
+.auto-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--gray-800);
+  border-radius: 10px;
+  font-size: 13px;
+  color: var(--gray-400);
+  transition: all 0.4s;
+}
+.auto-step.processing {
+  color: var(--gray-200);
+}
+.auto-step.done {
+  color: var(--white);
+}
+.auto-step .step-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  flex-shrink: 0;
+  background: var(--gray-700);
+  transition: all 0.4s;
+}
+.auto-step.processing .step-icon {
+  background: var(--gray-600);
+}
+.auto-step.done .step-icon {
+  background: var(--gray-500);
+}
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--gray-600);
+  border-top-color: var(--gray-300);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Completion */
+.completion-card {
+  background: var(--gray-800);
+  border: 1px solid var(--gray-600);
+  border-radius: 14px;
+  padding: 20px;
+  text-align: center;
+  align-self: flex-start;
+  max-width: 90%;
+  animation: msgIn 0.4s ease;
+}
+.completion-card .check-circle {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--gray-700);
+  margin: 0 auto 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  animation: scaleIn 0.4s ease;
+}
+@keyframes scaleIn {
+  from { transform: scale(0); }
+  50% { transform: scale(1.2); }
+  to { transform: scale(1); }
+}
+.completion-card h4 {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--white);
+  margin-bottom: 6px;
+}
+.completion-card p {
+  font-size: 12px;
+  color: var(--gray-400);
+  line-height: 1.5;
+}
+
+/* Chat Input */
+.chat-input-area {
+  padding: 12px 16px;
+  background: var(--gray-900);
+  border-top: 1px solid var(--gray-700);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.chat-input {
+  flex: 1;
+  background: var(--gray-800);
+  border: 1px solid var(--gray-700);
+  border-radius: 20px;
+  padding: 10px 16px;
+  font-size: 14px;
+  color: var(--white);
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.chat-input:focus { border-color: var(--gray-500); }
+.chat-input::placeholder { color: var(--gray-500); }
+.chat-input:disabled { opacity: 0.4; cursor: not-allowed; }
+.send-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--gray-600);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+.send-btn:hover { background: var(--gray-500); }
+.send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.send-btn svg { width: 18px; height: 18px; fill: var(--white); }
+
+/* Restart */
+.restart-area {
+  text-align: center;
+  padding: 16px;
+}
+.restart-btn {
+  padding: 10px 28px;
+  background: var(--gray-700);
+  color: var(--gray-200);
+  border: 1px solid var(--gray-600);
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.restart-btn:hover {
+  background: var(--gray-600);
+  color: var(--white);
+}
+
+@media (max-width: 480px) {
+  .chat-container {
+    max-width: 100%;
+    border-radius: 0;
+    height: 100vh;
+    margin: 0;
+  }
+  .page-header { display: none; }
+  .back-link { top: 0; left: 0; padding: 12px; background: var(--gray-900); width: 100%; z-index: 200; }
+  .restart-area { display: none; }
+}
+</style>
+</head>
+<body>
+
+<a href="../index.html" class="back-link">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+  戻る
+</a>
+
+<div class="page-header">
+  <h1>予約・日程調整の完全自動化</h1>
+  <p>LINE + n8n + Googleカレンダー連携のデモ<br>チャットで予約が完了するまでの流れを体験できます</p>
+</div>
+
+<div class="chat-container">
+  <div class="chat-header">
+    <div class="bot-avatar">🤖</div>
+    <div class="bot-info">
+      <h3>予約アシスタント</h3>
+      <span>n8n 自動応答 Bot</span>
+    </div>
+    <div class="online-dot active"></div>
+  </div>
+
+  <div class="chat-body" id="chatBody"></div>
+
+  <div class="chat-input-area">
+    <input type="text" class="chat-input" id="chatInput" placeholder="メッセージを入力..." disabled>
+    <button class="send-btn" id="sendBtn" disabled>
+      <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+    </button>
+  </div>
+</div>
+
+<div class="restart-area">
+  <button class="restart-btn" onclick="restartDemo()">デモをやり直す</button>
+</div>
+
+<script>
+const chatBody = document.getElementById('chatBody');
+const chatInput = document.getElementById('chatInput');
+const sendBtn = document.getElementById('sendBtn');
+
+let currentStep = 0;
+let selectedDate = '';
+let selectedTime = '';
+
+function getTimeStr() {
+  const now = new Date();
+  return now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+}
+
+function scrollToBottom() {
+  chatBody.scrollTop = chatBody.scrollHeight;
+}
+
+function addMessage(text, type) {
+  const div = document.createElement('div');
+  div.className = 'message ' + type;
+  div.innerHTML = text + '<div class="time">' + getTimeStr() + '</div>';
+  chatBody.appendChild(div);
+  scrollToBottom();
+}
+
+function addTyping() {
+  const div = document.createElement('div');
+  div.className = 'typing';
+  div.id = 'typingIndicator';
+  div.innerHTML = '<span></span><span></span><span></span>';
+  chatBody.appendChild(div);
+  scrollToBottom();
+}
+
+function removeTyping() {
+  const el = document.getElementById('typingIndicator');
+  if (el) el.remove();
+}
+
+function enableInput(placeholder) {
+  chatInput.disabled = false;
+  sendBtn.disabled = false;
+  chatInput.placeholder = placeholder || 'メッセージを入力...';
+  chatInput.focus();
+}
+
+function disableInput() {
+  chatInput.disabled = true;
+  sendBtn.disabled = true;
+}
+
+function buildCalendar() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = today.getMonth();
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const monthNames = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+
+  const available = [];
+  for (let i = 0; i < 5; i++) {
+    const d = today.getDate() + 1 + i * 2;
+    if (d <= daysInMonth) available.push(d);
+  }
+
+  let html = '<div class="mini-calendar">';
+  html += '<div class="cal-header">' + year + '年' + monthNames[month] + '</div>';
+  html += '<div class="cal-days"><span>日</span><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span>土</span></div>';
+  html += '<div class="cal-grid">';
+
+  for (let i = 0; i < firstDay; i++) {
+    html += '<div class="cal-cell"></div>';
+  }
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const isAvail = available.includes(d);
+    const dateStr = year + '/' + (month + 1) + '/' + d;
+    if (isAvail) {
+      html += '<div class="cal-cell available" onclick="selectDate(\'' + dateStr + '\',' + d + ')">' + d + '</div>';
+    } else {
+      html += '<div class="cal-cell">' + d + '</div>';
+    }
+  }
+
+  html += '</div></div>';
+  return html;
+}
+
+function selectDate(dateStr, day) {
+  selectedDate = dateStr;
+  document.querySelectorAll('.cal-cell.available').forEach(c => c.classList.remove('selected'));
+  document.querySelectorAll('.cal-cell.available').forEach(c => {
+    if (c.textContent == day) c.classList.add('selected');
+  });
+
+  // Remove any previous time slots
+  document.querySelectorAll('.time-slots').forEach(e => e.remove());
+
+  addMessage(selectedDate + ' を選択しました', 'user');
+
+  setTimeout(() => {
+    addTyping();
+    setTimeout(() => {
+      removeTyping();
+      addMessage(selectedDate + ' の空き状況です。<br>ご希望の時間をお選びください。', 'bot');
+      showTimeSlots();
+    }, 800);
+  }, 300);
+}
+
+function showTimeSlots() {
+  const times = ['10:00', '11:30', '13:00', '14:30', '16:00'];
+  const div = document.createElement('div');
+  div.className = 'time-slots';
+  times.forEach(t => {
+    const btn = document.createElement('button');
+    btn.className = 'time-slot';
+    btn.textContent = t;
+    btn.onclick = () => selectTime(t);
+    div.appendChild(btn);
+  });
+  chatBody.appendChild(div);
+  scrollToBottom();
+}
+
+function selectTime(time) {
+  selectedTime = time;
+  document.querySelectorAll('.time-slot').forEach(b => b.disabled = true);
+  addMessage(selectedTime + ' でお願いします', 'user');
+
+  setTimeout(() => {
+    addTyping();
+    setTimeout(() => {
+      removeTyping();
+      showConfirmation();
+    }, 800);
+  }, 300);
+}
+
+function showConfirmation() {
+  const div = document.createElement('div');
+  div.className = 'confirm-card';
+  div.innerHTML = `
+    <h4>以下の内容でよろしいですか？</h4>
+    <div class="detail-row"><span class="detail-label">日付</span><span class="detail-value">${selectedDate}</span></div>
+    <div class="detail-row"><span class="detail-label">時間</span><span class="detail-value">${selectedTime}</span></div>
+    <div class="detail-row"><span class="detail-label">メニュー</span><span class="detail-value">初回カウンセリング</span></div>
+    <div class="detail-row"><span class="detail-label">所要時間</span><span class="detail-value">60分</span></div>
+    <div class="confirm-buttons">
+      <button class="confirm-btn no" onclick="cancelBooking()">やり直す</button>
+      <button class="confirm-btn yes" onclick="confirmBooking()">確定する</button>
+    </div>
+  `;
+  chatBody.appendChild(div);
+  scrollToBottom();
+}
+
+function cancelBooking() {
+  addMessage('やり直します', 'user');
+  setTimeout(() => {
+    addTyping();
+    setTimeout(() => {
+      removeTyping();
+      addMessage('かしこまりました。もう一度日時をお選びください。', 'bot');
+      const calHtml = buildCalendar();
+      chatBody.insertAdjacentHTML('beforeend', calHtml);
+      scrollToBottom();
+    }, 600);
+  }, 300);
+}
+
+function confirmBooking() {
+  document.querySelectorAll('.confirm-btn').forEach(b => b.disabled = true);
+  addMessage('確定します！', 'user');
+
+  setTimeout(() => {
+    addTyping();
+    setTimeout(() => {
+      removeTyping();
+      addMessage('ありがとうございます！予約処理を開始します...', 'bot');
+      setTimeout(() => runAutomation(), 500);
+    }, 600);
+  }, 300);
+}
+
+function runAutomation() {
+  const steps = [
+    { text: 'Googleカレンダーに登録中...', doneText: 'Googleカレンダーに登録完了' },
+    { text: '確認メール送信中...', doneText: '確認メール送信完了' },
+    { text: 'リマインダー設定中...', doneText: 'リマインダー設定完了' }
+  ];
+
+  const container = document.createElement('div');
+  container.className = 'auto-steps';
+
+  steps.forEach((s, i) => {
+    const step = document.createElement('div');
+    step.className = 'auto-step';
+    step.id = 'autoStep' + i;
+    step.innerHTML = '<div class="step-icon"><div class="spinner"></div></div><span>' + s.text + '</span>';
+    container.appendChild(step);
+  });
+
+  chatBody.appendChild(container);
+  scrollToBottom();
+
+  let i = 0;
+  function processStep() {
+    if (i >= steps.length) {
+      setTimeout(showCompletion, 500);
+      return;
+    }
+    const el = document.getElementById('autoStep' + i);
+    el.classList.add('processing');
+
+    setTimeout(() => {
+      el.classList.remove('processing');
+      el.classList.add('done');
+      el.querySelector('.step-icon').innerHTML = '&#10003;';
+      el.querySelector('span').textContent = steps[i].doneText;
+      i++;
+      scrollToBottom();
+      setTimeout(processStep, 600);
+    }, 1000);
+  }
+  processStep();
+}
+
+function showCompletion() {
+  const div = document.createElement('div');
+  div.className = 'completion-card';
+  div.innerHTML = `
+    <div class="check-circle">&#10003;</div>
+    <h4>予約完了！</h4>
+    <p>
+      ${selectedDate} ${selectedTime}<br>
+      初回カウンセリング（60分）<br><br>
+      確認メールをお送りしました。<br>
+      前日にリマインダーが届きます。
+    </p>
+  `;
+  chatBody.appendChild(div);
+  scrollToBottom();
+}
+
+// Start demo
+function startDemo() {
+  chatBody.innerHTML = '';
+  currentStep = 0;
+  selectedDate = '';
+  selectedTime = '';
+  disableInput();
+
+  setTimeout(() => {
+    addMessage('こんにちは！<br>予約・日程調整アシスタントです。<br>「予約したいです」と入力してみてください。', 'bot');
+    enableInput('「予約したいです」と入力...');
+  }, 500);
+}
+
+function handleSend() {
+  const text = chatInput.value.trim();
+  if (!text) return;
+
+  chatInput.value = '';
+  disableInput();
+
+  if (currentStep === 0) {
+    addMessage(text, 'user');
+    currentStep = 1;
+
+    setTimeout(() => {
+      addTyping();
+      setTimeout(() => {
+        removeTyping();
+        addMessage('ご予約ですね！<br>ご希望の日時を選択してください。<br>空いている日付をタップできます。', 'bot');
+        const calHtml = buildCalendar();
+        chatBody.insertAdjacentHTML('beforeend', calHtml);
+        scrollToBottom();
+      }, 1000);
+    }, 300);
+  }
+}
+
+sendBtn.addEventListener('click', handleSend);
+chatInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') handleSend();
+});
+
+function restartDemo() {
+  startDemo();
+}
+
+startDemo();
+</script>
+</body>
+</html>

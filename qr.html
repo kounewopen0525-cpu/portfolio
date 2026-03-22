@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>QR Code Generator</title>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+  <style>
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      font-family: sans-serif;
+      background: #f5f5f5;
+    }
+    #qr-container {
+      background: white;
+      padding: 32px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+    #qr-container img {
+      display: block;
+      margin: 0 auto;
+    }
+    p {
+      margin-top: 16px;
+      color: #666;
+      font-size: 14px;
+    }
+    a {
+      color: #333;
+      word-break: break-all;
+    }
+    button {
+      margin-top: 16px;
+      padding: 8px 24px;
+      font-size: 14px;
+      border: none;
+      border-radius: 6px;
+      background: #333;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #555;
+    }
+  </style>
+</head>
+<body>
+  <div id="qr-container">
+    <div id="qr"></div>
+    <p><a id="url-display" href="#"></a></p>
+    <button onclick="downloadQR()">PNG download</button>
+  </div>
+
+  <script>
+    // ========================================
+    // ここのURLを本番URLに差し替えてください
+    const SITE_URL = 'https://kounewopen0525-cpu.github.io/portfolio/';
+    // ========================================
+
+    const qr = qrcode(0, 'M');
+    qr.addData(SITE_URL);
+    qr.make();
+
+    document.getElementById('qr').innerHTML = qr.createImgTag(8, 0);
+    document.getElementById('url-display').textContent = SITE_URL;
+    document.getElementById('url-display').href = SITE_URL;
+
+    function downloadQR() {
+      const img = document.querySelector('#qr img');
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      const a = document.createElement('a');
+      a.download = 'portfolio-qr.png';
+      a.href = canvas.toDataURL('image/png');
+      a.click();
+    }
+  </script>
+</body>
+</html>

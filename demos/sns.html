@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SNS分析・最適アプローチの自動化 | デモ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --black: #111;
+  --dark: #1a1a1a;
+  --gray-900: #222;
+  --gray-800: #333;
+  --gray-700: #444;
+  --gray-600: #666;
+  --gray-500: #888;
+  --gray-400: #aaa;
+  --gray-300: #ccc;
+  --gray-200: #e0e0e0;
+  --white: #fff;
+  --accent: #fff;
+}
+
+body {
+  font-family: 'Noto Sans JP', 'Inter', sans-serif;
+  background: var(--black);
+  color: var(--gray-200);
+  line-height: 1.7;
+  min-height: 100vh;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 16px 24px;
+  color: var(--gray-400);
+  text-decoration: none;
+  font-size: 14px;
+  transition: color 0.2s;
+}
+.back-link:hover { color: var(--white); }
+.back-link svg { width: 16px; height: 16px; }
+
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 24px 80px;
+}
+
+h1 {
+  font-size: clamp(24px, 5vw, 36px);
+  font-weight: 700;
+  color: var(--white);
+  margin-bottom: 8px;
+  letter-spacing: -0.02em;
+}
+
+.subtitle {
+  color: var(--gray-500);
+  font-size: 14px;
+  margin-bottom: 40px;
+}
+
+/* Cards */
+.card {
+  background: var(--dark);
+  border: 1px solid var(--gray-800);
+  border-radius: 12px;
+  padding: 28px;
+  margin-bottom: 24px;
+}
+
+.card-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--white);
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-title .icon {
+  width: 20px;
+  height: 20px;
+  background: var(--gray-800);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+}
+
+/* Stats row */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  background: var(--dark);
+  border: 1px solid var(--gray-800);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--gray-500);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.stat-value {
+  font-family: 'Inter', sans-serif;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--white);
+}
+
+.stat-change {
+  font-size: 12px;
+  color: var(--gray-400);
+  margin-top: 4px;
+}
+
+.stat-change.up { color: var(--gray-200); }
+.stat-change.up::before { content: "▲ "; }
+
+/* Bar chart */
+.bar-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  height: 180px;
+  padding-top: 20px;
+}
+
+.bar-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  height: 100%;
+  justify-content: flex-end;
+}
+
+.bar {
+  width: 100%;
+  max-width: 48px;
+  background: var(--gray-700);
+  border-radius: 6px 6px 0 0;
+  transition: height 1s ease, background 0.3s;
+  position: relative;
+  min-height: 4px;
+}
+
+.bar.highlight {
+  background: var(--white);
+}
+
+.bar-value {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  color: var(--gray-400);
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.bar-label {
+  font-size: 12px;
+  color: var(--gray-500);
+}
+
+/* Growth chart */
+.growth-chart {
+  position: relative;
+  height: 120px;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.growth-bar {
+  flex: 1;
+  background: var(--gray-800);
+  border-radius: 2px 2px 0 0;
+  transition: height 1s ease;
+}
+
+.growth-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+
+.growth-labels span {
+  font-size: 11px;
+  color: var(--gray-600);
+}
+
+/* Best times */
+.time-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 8px;
+}
+
+.time-slot {
+  text-align: center;
+  padding: 10px 4px;
+  border-radius: 8px;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  background: var(--gray-900);
+  color: var(--gray-600);
+  border: 1px solid var(--gray-800);
+  transition: all 0.3s;
+}
+
+.time-slot.hot {
+  background: var(--white);
+  color: var(--black);
+  border-color: var(--white);
+  font-weight: 700;
+}
+
+.time-slot.warm {
+  background: var(--gray-700);
+  color: var(--gray-200);
+  border-color: var(--gray-600);
+}
+
+/* Button */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 32px;
+  background: var(--white);
+  color: var(--black);
+  border: none;
+  border-radius: 10px;
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  width: 100%;
+  max-width: 320px;
+  margin: 0 auto;
+}
+
+.btn:hover { opacity: 0.85; transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+.btn-outline {
+  background: transparent;
+  color: var(--white);
+  border: 1px solid var(--gray-700);
+}
+.btn-outline:hover { border-color: var(--gray-500); background: var(--gray-900); }
+
+.btn-center {
+  display: flex;
+  justify-content: center;
+  margin: 32px 0;
+}
+
+/* Analysis animation */
+.analysis-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.85);
+  z-index: 100;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.analysis-overlay.active { display: flex; }
+
+.spinner {
+  width: 48px;
+  height: 48px;
+  border: 3px solid var(--gray-800);
+  border-top-color: var(--white);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.analysis-text {
+  color: var(--white);
+  font-size: 16px;
+  font-weight: 500;
+  text-align: center;
+}
+
+.analysis-steps {
+  color: var(--gray-500);
+  font-size: 13px;
+  text-align: center;
+  min-height: 20px;
+}
+
+/* Insights */
+.insights-section { display: none; }
+.insights-section.visible { display: block; }
+
+.insight-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 20px;
+  background: var(--gray-900);
+  border: 1px solid var(--gray-800);
+  border-radius: 10px;
+  margin-bottom: 12px;
+  opacity: 0;
+  transform: translateY(12px);
+  transition: all 0.5s ease;
+}
+
+.insight-item.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.insight-icon {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  background: var(--gray-800);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+
+.insight-label {
+  font-size: 12px;
+  color: var(--gray-500);
+  margin-bottom: 4px;
+}
+
+.insight-value {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--white);
+}
+
+.insight-desc {
+  font-size: 13px;
+  color: var(--gray-400);
+  margin-top: 4px;
+}
+
+/* Approach list */
+.approach-section { display: none; }
+.approach-section.visible { display: block; }
+
+.target-card {
+  background: var(--gray-900);
+  border: 1px solid var(--gray-800);
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 12px;
+  opacity: 0;
+  transform: translateY(12px);
+  transition: all 0.5s ease;
+}
+
+.target-card.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.target-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.target-avatar {
+  width: 44px;
+  height: 44px;
+  background: var(--gray-800);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: var(--gray-400);
+  font-weight: 700;
+  font-family: 'Inter', sans-serif;
+}
+
+.target-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--white);
+}
+
+.target-role {
+  font-size: 12px;
+  color: var(--gray-500);
+}
+
+.target-match {
+  margin-left: auto;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--white);
+  background: var(--gray-800);
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+.target-message {
+  background: var(--dark);
+  border: 1px solid var(--gray-800);
+  border-radius: 8px;
+  padding: 14px;
+  font-size: 13px;
+  color: var(--gray-300);
+  line-height: 1.8;
+}
+
+.target-message-label {
+  font-size: 11px;
+  color: var(--gray-600);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Progress */
+.progress-section { display: none; }
+.progress-section.visible { display: block; }
+
+.progress-bar-track {
+  width: 100%;
+  height: 6px;
+  background: var(--gray-800);
+  border-radius: 3px;
+  overflow: hidden;
+  margin: 20px 0;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--white);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.progress-status {
+  text-align: center;
+  font-size: 14px;
+  color: var(--gray-400);
+  margin-bottom: 8px;
+}
+
+.progress-count {
+  text-align: center;
+  font-family: 'Inter', sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--white);
+}
+
+/* Completion stats */
+.completion-section { display: none; }
+.completion-section.visible { display: block; }
+
+.completion-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.completion-stat {
+  text-align: center;
+  padding: 24px 16px;
+  background: var(--gray-900);
+  border: 1px solid var(--gray-800);
+  border-radius: 10px;
+}
+
+.completion-stat .num {
+  font-family: 'Inter', sans-serif;
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--white);
+}
+
+.completion-stat .label {
+  font-size: 13px;
+  color: var(--gray-500);
+  margin-top: 4px;
+}
+
+.success-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--white);
+  color: var(--black);
+  padding: 8px 20px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 20px;
+}
+
+.section-divider {
+  border: none;
+  border-top: 1px solid var(--gray-800);
+  margin: 40px 0;
+}
+
+/* Animation */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+  animation: fadeInUp 0.6s ease forwards;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .container { padding: 0 16px 60px; }
+  .card { padding: 20px; }
+  .bar-chart { height: 140px; gap: 6px; }
+  .stats-row { grid-template-columns: 1fr 1fr; }
+  .time-grid { grid-template-columns: repeat(4, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<a href="../index.html" class="back-link">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+  戻る
+</a>
+
+<div class="container">
+  <h1>SNS分析・最適アプローチ</h1>
+  <p class="subtitle">AIがSNSデータを分析し、最適なアプローチを自動実行します</p>
+
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-label">フォロワー数</div>
+      <div class="stat-value">2,847</div>
+      <div class="stat-change up">+12.3% 先月比</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">エンゲージメント率</div>
+      <div class="stat-value">4.8%</div>
+      <div class="stat-change up">+0.6% 先月比</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">リーチ数</div>
+      <div class="stat-value">18.2K</div>
+      <div class="stat-change up">+23% 先月比</div>
+    </div>
+  </div>
+
+  <!-- Engagement Chart -->
+  <div class="card">
+    <div class="card-title">
+      <span class="icon">&#9632;</span>
+      曜日別エンゲージメント
+    </div>
+    <div class="bar-chart" id="engagementChart">
+      <div class="bar-col">
+        <div class="bar" data-height="55"><span class="bar-value">3.2%</span></div>
+        <span class="bar-label">月</span>
+      </div>
+      <div class="bar-col">
+        <div class="bar" data-height="70"><span class="bar-value">4.1%</span></div>
+        <span class="bar-label">火</span>
+      </div>
+      <div class="bar-col">
+        <div class="bar" data-height="62"><span class="bar-value">3.6%</span></div>
+        <span class="bar-label">水</span>
+      </div>
+      <div class="bar-col">
+        <div class="bar" data-height="85"><span class="bar-value">5.0%</span></div>
+        <span class="bar-label">木</span>
+      </div>
+      <div class="bar-col">
+        <div class="bar highlight" data-height="100"><span class="bar-value">5.8%</span></div>
+        <span class="bar-label">金</span>
+      </div>
+      <div class="bar-col">
+        <div class="bar highlight" data-height="92"><span class="bar-value">5.4%</span></div>
+        <span class="bar-label">土</span>
+      </div>
+      <div class="bar-col">
+        <div class="bar" data-height="48"><span class="bar-value">2.8%</span></div>
+        <span class="bar-label">日</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Follower Growth -->
+  <div class="card">
+    <div class="card-title">
+      <span class="icon">&#9650;</span>
+      フォロワー推移（過去12ヶ月）
+    </div>
+    <div class="growth-chart" id="growthChart">
+      <div class="growth-bar" data-height="25"></div>
+      <div class="growth-bar" data-height="28"></div>
+      <div class="growth-bar" data-height="30"></div>
+      <div class="growth-bar" data-height="32"></div>
+      <div class="growth-bar" data-height="38"></div>
+      <div class="growth-bar" data-height="42"></div>
+      <div class="growth-bar" data-height="48"></div>
+      <div class="growth-bar" data-height="55"></div>
+      <div class="growth-bar" data-height="63"></div>
+      <div class="growth-bar" data-height="72"></div>
+      <div class="growth-bar" data-height="85"></div>
+      <div class="growth-bar" data-height="100"></div>
+    </div>
+    <div class="growth-labels">
+      <span>4月</span><span>7月</span><span>10月</span><span>3月</span>
+    </div>
+  </div>
+
+  <!-- Best Times -->
+  <div class="card">
+    <div class="card-title">
+      <span class="icon">&#9200;</span>
+      投稿時間帯パフォーマンス
+    </div>
+    <div class="time-grid">
+      <div class="time-slot">6:00</div>
+      <div class="time-slot">7:00</div>
+      <div class="time-slot warm">8:00</div>
+      <div class="time-slot">9:00</div>
+      <div class="time-slot">10:00</div>
+      <div class="time-slot">11:00</div>
+      <div class="time-slot warm">12:00</div>
+      <div class="time-slot">13:00</div>
+      <div class="time-slot">14:00</div>
+      <div class="time-slot">15:00</div>
+      <div class="time-slot">16:00</div>
+      <div class="time-slot">17:00</div>
+      <div class="time-slot warm">18:00</div>
+      <div class="time-slot hot">19:00</div>
+      <div class="time-slot hot">20:00</div>
+      <div class="time-slot hot">21:00</div>
+      <div class="time-slot warm">22:00</div>
+      <div class="time-slot">23:00</div>
+    </div>
+  </div>
+
+  <!-- Analyze Button -->
+  <div class="btn-center" id="analyzeSection">
+    <button class="btn" onclick="startAnalysis()">AI分析を実行</button>
+  </div>
+
+  <!-- Analysis Overlay -->
+  <div class="analysis-overlay" id="analysisOverlay">
+    <div class="spinner"></div>
+    <div class="analysis-text">AIがSNSデータを分析中...</div>
+    <div class="analysis-steps" id="analysisSteps"></div>
+  </div>
+
+  <!-- AI Insights -->
+  <div class="insights-section" id="insightsSection">
+    <hr class="section-divider">
+    <div class="card">
+      <div class="card-title">
+        <span class="icon">&#9733;</span>
+        AI分析レポート
+      </div>
+
+      <div class="insight-item" data-delay="0">
+        <div class="insight-icon">&#128337;</div>
+        <div>
+          <div class="insight-label">最適な投稿時間</div>
+          <div class="insight-value">19:00〜21:00</div>
+          <div class="insight-desc">この時間帯はエンゲージメント率が平均の2.4倍。特に金曜・土曜の19:00台が最も効果的です。</div>
+        </div>
+      </div>
+
+      <div class="insight-item" data-delay="200">
+        <div class="insight-icon">&#128200;</div>
+        <div>
+          <div class="insight-label">高エンゲージメントコンテンツ</div>
+          <div class="insight-value">ビフォーアフター系</div>
+          <div class="insight-desc">施術前後の比較投稿は通常投稿の3.1倍のエンゲージメントを獲得。動画形式がさらに効果的（+42%）。</div>
+        </div>
+      </div>
+
+      <div class="insight-item" data-delay="400">
+        <div class="insight-icon">&#127919;</div>
+        <div>
+          <div class="insight-label">メインターゲット層</div>
+          <div class="insight-value">30-40代経営者</div>
+          <div class="insight-desc">フォロワーの38%が30-40代の経営者・個人事業主。美容・健康への投資意欲が高く、高単価メニューへの関心が強い傾向。</div>
+        </div>
+      </div>
+
+      <div class="insight-item" data-delay="600">
+        <div class="insight-icon">&#128172;</div>
+        <div>
+          <div class="insight-label">推奨ハッシュタグ</div>
+          <div class="insight-value">#経営者美容 #エグゼクティブケア #ビジネスパーソン</div>
+          <div class="insight-desc">ターゲット層のリーチ率が最も高いタグの組み合わせ。一般的な美容タグよりCTRが67%向上。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Approach List -->
+  <div class="approach-section" id="approachSection">
+    <div class="card">
+      <div class="card-title">
+        <span class="icon">&#9993;</span>
+        アプローチリスト（AIが自動生成）
+      </div>
+
+      <div class="target-card" data-delay="0">
+        <div class="target-header">
+          <div class="target-avatar">T</div>
+          <div>
+            <div class="target-name">田中 裕也</div>
+            <div class="target-role">IT企業 代表取締役 / フォロワー 5.2K</div>
+          </div>
+          <div class="target-match">適合度 96%</div>
+        </div>
+        <div class="target-message-label">AI推奨メッセージ</div>
+        <div class="target-message">田中様、いつも素晴らしい経営に関する投稿を拝見しております。お忙しい日々の中で、パフォーマンスを最大化するためのコンディショニングについて、経営者様向けの特別プログラムをご案内できればと思います。</div>
+      </div>
+
+      <div class="target-card" data-delay="150">
+        <div class="target-header">
+          <div class="target-avatar">S</div>
+          <div>
+            <div class="target-name">鈴木 美咲</div>
+            <div class="target-role">コンサルティング会社 CEO / フォロワー 3.8K</div>
+          </div>
+          <div class="target-match">適合度 93%</div>
+        </div>
+        <div class="target-message-label">AI推奨メッセージ</div>
+        <div class="target-message">鈴木様、先日のビジネスカンファレンスでのご登壇、大変勉強になりました。第一印象が成果に直結するビジネスシーンで活躍される鈴木様に、エグゼクティブ向けの美容プログラムをご提案させてください。</div>
+      </div>
+
+      <div class="target-card" data-delay="300">
+        <div class="target-header">
+          <div class="target-avatar">M</div>
+          <div>
+            <div class="target-name">松本 健一</div>
+            <div class="target-role">不動産会社 オーナー / フォロワー 2.1K</div>
+          </div>
+          <div class="target-match">適合度 89%</div>
+        </div>
+        <div class="target-message-label">AI推奨メッセージ</div>
+        <div class="target-message">松本様、不動産業界で素晴らしいご実績をお持ちですね。クライアントとの信頼関係構築に外見の印象管理は重要です。経営者様限定のビフォーアフター実績をご覧いただけますでしょうか。</div>
+      </div>
+
+      <div class="target-card" data-delay="450">
+        <div class="target-header">
+          <div class="target-avatar">K</div>
+          <div>
+            <div class="target-name">加藤 あかり</div>
+            <div class="target-role">マーケティング会社 取締役 / フォロワー 4.5K</div>
+          </div>
+          <div class="target-match">適合度 87%</div>
+        </div>
+        <div class="target-message-label">AI推奨メッセージ</div>
+        <div class="target-message">加藤様、マーケティングの最新トレンドに関する発信、いつも参考にさせていただいております。SNSでのブランディングに注力されている加藤様に、美容×ビジネスの新しい価値をご提案できればと思います。</div>
+      </div>
+    </div>
+
+    <div class="btn-center" id="approachBtnSection">
+      <button class="btn" onclick="startApproach()">自動アプローチ開始</button>
+    </div>
+  </div>
+
+  <!-- Progress -->
+  <div class="progress-section" id="progressSection">
+    <hr class="section-divider">
+    <div class="card">
+      <div class="card-title">
+        <span class="icon">&#9654;</span>
+        アプローチ実行中
+      </div>
+      <div class="progress-status" id="progressStatus">メッセージ送信中...</div>
+      <div class="progress-count" id="progressCount">0 / 4</div>
+      <div class="progress-bar-track">
+        <div class="progress-bar-fill" id="progressBar"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Completion -->
+  <div class="completion-section" id="completionSection">
+    <div class="card" style="text-align: center;">
+      <div class="success-badge">&#10003; アプローチ完了</div>
+      <div class="card-title" style="justify-content: center;">実行結果サマリー</div>
+      <div class="completion-stats">
+        <div class="completion-stat">
+          <div class="num">4</div>
+          <div class="label">送信完了</div>
+        </div>
+        <div class="completion-stat">
+          <div class="num">4</div>
+          <div class="label">配信成功</div>
+        </div>
+        <div class="completion-stat">
+          <div class="num">91%</div>
+          <div class="label">平均適合度</div>
+        </div>
+        <div class="completion-stat">
+          <div class="num">2.4h</div>
+          <div class="label">予想返信時間</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="btn-center" style="margin-top: 24px;">
+      <button class="btn btn-outline" onclick="resetDemo()">デモをリセット</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// Animate charts on load
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => {
+    document.querySelectorAll('#engagementChart .bar').forEach(bar => {
+      bar.style.height = bar.dataset.height + '%';
+    });
+    document.querySelectorAll('#growthChart .growth-bar').forEach(bar => {
+      bar.style.height = bar.dataset.height + '%';
+    });
+  }, 300);
+});
+
+// Analysis flow
+function startAnalysis() {
+  const overlay = document.getElementById('analysisOverlay');
+  const steps = document.getElementById('analysisSteps');
+  overlay.classList.add('active');
+
+  const analysisSteps = [
+    'フォロワーデータを取得中...',
+    'エンゲージメントパターンを解析中...',
+    'コンテンツ分析を実行中...',
+    'ターゲット層を特定中...',
+    'アプローチ戦略を生成中...',
+  ];
+
+  let i = 0;
+  const interval = setInterval(() => {
+    if (i < analysisSteps.length) {
+      steps.textContent = analysisSteps[i];
+      i++;
+    } else {
+      clearInterval(interval);
+      overlay.classList.remove('active');
+      document.getElementById('analyzeSection').style.display = 'none';
+      showInsights();
+    }
+  }, 700);
+}
+
+function showInsights() {
+  const section = document.getElementById('insightsSection');
+  section.classList.add('visible');
+  section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  section.querySelectorAll('.insight-item').forEach(item => {
+    const delay = parseInt(item.dataset.delay) || 0;
+    setTimeout(() => item.classList.add('show'), 300 + delay);
+  });
+
+  // Show approach section after insights
+  setTimeout(() => {
+    const approachSection = document.getElementById('approachSection');
+    approachSection.classList.add('visible');
+    approachSection.querySelectorAll('.target-card').forEach(card => {
+      const delay = parseInt(card.dataset.delay) || 0;
+      setTimeout(() => card.classList.add('show'), 200 + delay);
+    });
+  }, 1500);
+}
+
+// Approach flow
+function startApproach() {
+  document.getElementById('approachBtnSection').style.display = 'none';
+  const progressSection = document.getElementById('progressSection');
+  progressSection.classList.add('visible');
+  progressSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+  const bar = document.getElementById('progressBar');
+  const count = document.getElementById('progressCount');
+  const status = document.getElementById('progressStatus');
+  const total = 4;
+  let current = 0;
+
+  const names = ['田中 裕也', '鈴木 美咲', '松本 健一', '加藤 あかり'];
+
+  const interval = setInterval(() => {
+    current++;
+    bar.style.width = (current / total * 100) + '%';
+    count.textContent = current + ' / ' + total;
+    status.textContent = names[current - 1] + ' にメッセージ送信中...';
+
+    if (current >= total) {
+      clearInterval(interval);
+      status.textContent = '全てのアプローチが完了しました';
+      setTimeout(showCompletion, 800);
+    }
+  }, 900);
+}
+
+function showCompletion() {
+  document.getElementById('progressSection').style.display = 'none';
+  const section = document.getElementById('completionSection');
+  section.classList.add('visible');
+  section.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function resetDemo() {
+  // Hide all dynamic sections
+  ['insightsSection', 'approachSection', 'progressSection', 'completionSection'].forEach(id => {
+    const el = document.getElementById(id);
+    el.classList.remove('visible');
+    el.style.display = '';
+  });
+
+  // Reset insight animations
+  document.querySelectorAll('.insight-item').forEach(el => el.classList.remove('show'));
+  document.querySelectorAll('.target-card').forEach(el => el.classList.remove('show'));
+
+  // Reset progress
+  document.getElementById('progressBar').style.width = '0%';
+  document.getElementById('progressCount').textContent = '0 / 4';
+  document.getElementById('progressStatus').textContent = 'メッセージ送信中...';
+
+  // Show analyze button
+  document.getElementById('analyzeSection').style.display = 'flex';
+  document.getElementById('approachBtnSection').style.display = 'flex';
+
+  // Scroll to top
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>データ入力・リスト作成の自動化 | デモ</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Noto Sans JP', 'Inter', sans-serif;
+  background: #111;
+  color: #e0e0e0;
+  min-height: 100vh;
+  line-height: 1.7;
+}
+
+a { color: #999; text-decoration: none; transition: color 0.2s; }
+a:hover { color: #fff; }
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 20px 24px;
+  font-size: 14px;
+  color: #888;
+}
+.back-link svg { width: 16px; height: 16px; }
+.back-link:hover { color: #fff; }
+
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 24px 80px;
+}
+
+.hero {
+  text-align: center;
+  padding: 40px 0 48px;
+}
+
+.hero h1 {
+  font-size: clamp(22px, 5vw, 32px);
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 12px;
+  letter-spacing: -0.02em;
+}
+
+.hero p {
+  font-size: 15px;
+  color: #888;
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+.section-label {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #666;
+  margin-bottom: 12px;
+}
+
+.card {
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 20px;
+}
+
+textarea {
+  width: 100%;
+  min-height: 220px;
+  background: #111;
+  border: 1px solid #333;
+  border-radius: 8px;
+  color: #ccc;
+  font-family: 'Noto Sans JP', monospace;
+  font-size: 13px;
+  line-height: 1.8;
+  padding: 16px;
+  resize: vertical;
+  transition: border-color 0.2s;
+}
+textarea:focus {
+  outline: none;
+  border-color: #555;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 32px;
+  border: none;
+  border-radius: 8px;
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-primary {
+  background: #fff;
+  color: #111;
+  width: 100%;
+  margin-top: 16px;
+}
+.btn-primary:hover { background: #e0e0e0; }
+.btn-primary:disabled {
+  background: #333;
+  color: #666;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: #2a2a2a;
+  color: #ccc;
+  border: 1px solid #3a3a3a;
+}
+.btn-secondary:hover { background: #333; color: #fff; }
+
+/* Processing overlay */
+.processing {
+  display: none;
+  text-align: center;
+  padding: 48px 24px;
+}
+.processing.active { display: block; }
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #2a2a2a;
+  border-top-color: #fff;
+  border-radius: 50%;
+  margin: 0 auto 24px;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.processing-step {
+  font-size: 15px;
+  color: #888;
+  margin-bottom: 8px;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: all 0.4s ease;
+}
+.processing-step.active {
+  opacity: 1;
+  transform: translateY(0);
+  color: #fff;
+}
+.processing-step.done {
+  opacity: 0.4;
+  transform: translateY(0);
+  color: #666;
+}
+
+.progress-bar-track {
+  width: 100%;
+  max-width: 300px;
+  height: 3px;
+  background: #2a2a2a;
+  border-radius: 2px;
+  margin: 24px auto 0;
+  overflow: hidden;
+}
+.progress-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: #fff;
+  border-radius: 2px;
+  transition: width 0.4s ease;
+}
+
+/* Results */
+.results { display: none; }
+.results.active { display: block; }
+
+.table-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+thead th {
+  text-align: left;
+  padding: 12px 16px;
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #888;
+  border-bottom: 1px solid #333;
+  white-space: nowrap;
+}
+
+tbody td {
+  padding: 14px 16px;
+  border-bottom: 1px solid #222;
+  color: #ccc;
+  white-space: nowrap;
+}
+
+tbody tr {
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all 0.3s ease;
+}
+tbody tr.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+tbody tr:hover { background: #222; }
+
+.stats-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #2a2a2a;
+}
+
+.stat-item {
+  flex: 1;
+  min-width: 140px;
+}
+
+.stat-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: #fff;
+  font-family: 'Inter', sans-serif;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: #666;
+  margin-top: 2px;
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+  flex-wrap: wrap;
+}
+
+.tag {
+  display: inline-block;
+  padding: 2px 8px;
+  background: #222;
+  border-radius: 4px;
+  font-size: 11px;
+  color: #888;
+}
+
+.toast {
+  position: fixed;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: #fff;
+  color: #111;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  opacity: 0;
+  transition: all 0.3s ease;
+  pointer-events: none;
+  z-index: 100;
+}
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+@media (max-width: 600px) {
+  .container { padding: 0 16px 60px; }
+  .card { padding: 16px; }
+  textarea { font-size: 12px; min-height: 180px; padding: 12px; }
+  .stats-bar { gap: 16px; }
+  .stat-value { font-size: 18px; }
+  .actions { flex-direction: column; }
+  .btn { width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<a href="../index.html" class="back-link">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+  トップに戻る
+</a>
+
+<div class="container">
+  <div class="hero">
+    <h1>データ入力・リスト作成の自動化</h1>
+    <p>バラバラの生データをAIが自動で解析し、整理されたリストを瞬時に生成します</p>
+  </div>
+
+  <!-- Input Section -->
+  <div id="inputSection">
+    <div class="section-label">Step 1 / 生データ入力</div>
+    <div class="card">
+      <textarea id="rawData">田中太郎　ABC株式会社　090-1234-5678　tanaka@abc.co.jp
+佐藤花子、XYZ商事、080-9876-5432、sato@xyz.com
+鈴木一郎/DEFコンサルティング/070-1111-2222/suzuki@def.co.jp
+山田美咲  GHI工業  tel:090-3333-4444  yamada@ghi.co.jp
+高橋健太　JKLテクノロジー　080-5555-6666 takahashi@jkl.com</textarea>
+      <button class="btn btn-primary" id="processBtn" onclick="startProcessing()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+        AIで自動整理
+      </button>
+    </div>
+  </div>
+
+  <!-- Processing Section -->
+  <div class="processing" id="processingSection">
+    <div class="card">
+      <div class="spinner"></div>
+      <div class="processing-step" id="step1">データ解析中...</div>
+      <div class="processing-step" id="step2">項目分類中...</div>
+      <div class="processing-step" id="step3">リスト生成中...</div>
+      <div class="progress-bar-track">
+        <div class="progress-bar-fill" id="progressBar"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Results Section -->
+  <div class="results" id="resultsSection">
+    <div class="section-label">Step 2 / 整理結果</div>
+    <div class="card">
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>名前</th>
+              <th>会社名</th>
+              <th>電話番号</th>
+              <th>メールアドレス</th>
+            </tr>
+          </thead>
+          <tbody id="resultBody"></tbody>
+        </table>
+      </div>
+
+      <div class="stats-bar">
+        <div class="stat-item">
+          <div class="stat-value" id="statCount">-</div>
+          <div class="stat-label">自動整理件数</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value" id="statTime">-</div>
+          <div class="stat-label">処理時間</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value" id="statManual">-</div>
+          <div class="stat-label">手作業の場合</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-primary" style="flex:1; margin-top:0;" onclick="downloadCSV()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        CSVダウンロード
+      </button>
+      <button class="btn btn-secondary" style="flex:1;" onclick="resetDemo()">
+        もう一度試す
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const parsedData = [
+  { name: '田中太郎', company: 'ABC株式会社', phone: '090-1234-5678', email: 'tanaka@abc.co.jp' },
+  { name: '佐藤花子', company: 'XYZ商事', phone: '080-9876-5432', email: 'sato@xyz.com' },
+  { name: '鈴木一郎', company: 'DEFコンサルティング', phone: '070-1111-2222', email: 'suzuki@def.co.jp' },
+  { name: '山田美咲', company: 'GHI工業', phone: '090-3333-4444', email: 'yamada@ghi.co.jp' },
+  { name: '高橋健太', company: 'JKLテクノロジー', phone: '080-5555-6666', email: 'takahashi@jkl.com' },
+];
+
+function startProcessing() {
+  const btn = document.getElementById('processBtn');
+  btn.disabled = true;
+
+  document.getElementById('inputSection').style.display = 'none';
+  const proc = document.getElementById('processingSection');
+  proc.classList.add('active');
+
+  const steps = ['step1', 'step2', 'step3'];
+  const bar = document.getElementById('progressBar');
+
+  // Step 1
+  setTimeout(() => {
+    document.getElementById('step1').classList.add('active');
+    bar.style.width = '33%';
+  }, 300);
+
+  // Step 2
+  setTimeout(() => {
+    document.getElementById('step1').classList.remove('active');
+    document.getElementById('step1').classList.add('done');
+    document.getElementById('step2').classList.add('active');
+    bar.style.width = '66%';
+  }, 1200);
+
+  // Step 3
+  setTimeout(() => {
+    document.getElementById('step2').classList.remove('active');
+    document.getElementById('step2').classList.add('done');
+    document.getElementById('step3').classList.add('active');
+    bar.style.width = '100%';
+  }, 2000);
+
+  // Show results
+  setTimeout(() => {
+    proc.classList.remove('active');
+    showResults();
+  }, 2800);
+}
+
+function showResults() {
+  const results = document.getElementById('resultsSection');
+  results.classList.add('active');
+
+  const tbody = document.getElementById('resultBody');
+  tbody.innerHTML = '';
+
+  parsedData.forEach((item, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="color:#555; font-family:Inter,sans-serif;">${i + 1}</td>
+      <td style="color:#fff; font-weight:500;">${item.name}</td>
+      <td>${item.company}</td>
+      <td style="font-family:Inter,sans-serif;">${item.phone}</td>
+      <td style="font-family:Inter,sans-serif; color:#888;">${item.email}</td>
+    `;
+    tbody.appendChild(tr);
+
+    setTimeout(() => tr.classList.add('visible'), 100 + i * 120);
+  });
+
+  // Animate stats
+  setTimeout(() => {
+    document.getElementById('statCount').textContent = parsedData.length + '件';
+    document.getElementById('statTime').textContent = '2.3秒';
+    document.getElementById('statManual').textContent = '約15分';
+  }, 800);
+}
+
+function downloadCSV() {
+  const bom = '\uFEFF';
+  let csv = bom + '名前,会社名,電話番号,メールアドレス\n';
+  parsedData.forEach(item => {
+    csv += `${item.name},${item.company},${item.phone},${item.email}\n`;
+  });
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'organized_data.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+
+  showToast('CSVファイルをダウンロードしました');
+}
+
+function resetDemo() {
+  document.getElementById('resultsSection').classList.remove('active');
+  document.getElementById('processingSection').classList.remove('active');
+  document.getElementById('inputSection').style.display = 'block';
+  document.getElementById('processBtn').disabled = false;
+
+  // Reset processing steps
+  ['step1', 'step2', 'step3'].forEach(id => {
+    const el = document.getElementById(id);
+    el.classList.remove('active', 'done');
+  });
+  document.getElementById('progressBar').style.width = '0%';
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+</script>
+</body>
+</html>

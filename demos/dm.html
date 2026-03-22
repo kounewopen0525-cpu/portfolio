@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DM営業の自動化 - デモ</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Noto Sans JP', 'Inter', sans-serif;
+  background: #111;
+  color: #e0e0e0;
+  min-height: 100vh;
+  line-height: 1.7;
+}
+
+a { color: #999; text-decoration: none; transition: color .2s; }
+a:hover { color: #fff; }
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 20px 24px;
+  font-size: 14px;
+  color: #777;
+}
+.back-link::before { content: '←'; }
+
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 0 20px 80px;
+}
+
+h1 {
+  font-size: clamp(24px, 5vw, 36px);
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 8px;
+  letter-spacing: -0.5px;
+}
+
+.subtitle {
+  color: #666;
+  font-size: 14px;
+  margin-bottom: 40px;
+}
+
+/* Steps indicator */
+.steps {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 36px;
+}
+
+.step-dot {
+  flex: 1;
+  height: 3px;
+  background: #2a2a2a;
+  border-radius: 2px;
+  transition: background .4s;
+}
+
+.step-dot.active { background: #fff; }
+.step-dot.done { background: #555; }
+
+/* Sections */
+.section {
+  display: none;
+  animation: fadeUp .4s ease;
+}
+
+.section.active { display: block; }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Form */
+.form-group {
+  margin-bottom: 20px;
+}
+
+label {
+  display: block;
+  font-size: 13px;
+  color: #888;
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+
+input, select, textarea {
+  width: 100%;
+  padding: 12px 16px;
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  color: #e0e0e0;
+  font-size: 15px;
+  font-family: inherit;
+  transition: border-color .2s;
+  outline: none;
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: #555;
+}
+
+select { cursor: pointer; }
+select option { background: #1a1a1a; }
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 500px) {
+  .form-row { grid-template-columns: 1fr; }
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 32px;
+  background: #fff;
+  color: #111;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all .2s;
+  width: 100%;
+  margin-top: 8px;
+}
+
+.btn:hover { background: #e0e0e0; }
+.btn:active { transform: scale(0.98); }
+
+.btn:disabled {
+  background: #333;
+  color: #666;
+  cursor: not-allowed;
+}
+
+.btn-outline {
+  background: transparent;
+  color: #ccc;
+  border: 1px solid #333;
+}
+.btn-outline:hover { background: #1a1a1a; border-color: #555; color: #fff; }
+
+.btn-sm {
+  padding: 8px 16px;
+  font-size: 13px;
+  width: auto;
+  margin-top: 0;
+}
+
+/* Loading */
+.loading-container {
+  text-align: center;
+  padding: 48px 0;
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 2px solid #2a2a2a;
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+  margin: 0 auto 16px;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.loading-text {
+  color: #666;
+  font-size: 14px;
+}
+
+.loading-text .dots::after {
+  content: '';
+  animation: dots 1.5s steps(4, end) infinite;
+}
+
+@keyframes dots {
+  0% { content: ''; }
+  25% { content: '.'; }
+  50% { content: '..'; }
+  75% { content: '...'; }
+}
+
+/* Prospect list */
+.prospect-card {
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 10px;
+  padding: 18px 20px;
+  margin-bottom: 12px;
+  transition: border-color .2s;
+  animation: fadeUp .4s ease;
+  animation-fill-mode: both;
+}
+
+.prospect-card:nth-child(1) { animation-delay: 0s; }
+.prospect-card:nth-child(2) { animation-delay: .06s; }
+.prospect-card:nth-child(3) { animation-delay: .12s; }
+.prospect-card:nth-child(4) { animation-delay: .18s; }
+.prospect-card:nth-child(5) { animation-delay: .24s; }
+.prospect-card:nth-child(6) { animation-delay: .3s; }
+
+.prospect-card:hover { border-color: #444; }
+
+.prospect-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+  gap: 12px;
+}
+
+.prospect-name {
+  font-weight: 600;
+  color: #fff;
+  font-size: 15px;
+}
+
+.prospect-badge {
+  font-size: 11px;
+  padding: 3px 10px;
+  background: #2a2a2a;
+  border-radius: 20px;
+  color: #999;
+  white-space: nowrap;
+}
+
+.prospect-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  font-size: 13px;
+  color: #666;
+}
+
+.prospect-meta span { display: flex; align-items: center; gap: 4px; }
+
+.prospect-actions {
+  margin-top: 12px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* DM Preview */
+.dm-preview {
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 10px;
+  padding: 20px;
+  margin-top: 12px;
+  font-size: 14px;
+  line-height: 1.8;
+  color: #bbb;
+  display: none;
+}
+
+.dm-preview.visible { display: block; animation: fadeUp .3s ease; }
+
+.dm-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 16px;
+  background: #fff;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  animation: blink .6s step-end infinite;
+}
+
+@keyframes blink { 50% { opacity: 0; } }
+
+.dm-status {
+  font-size: 12px;
+  color: #555;
+  margin-top: 8px;
+}
+
+.dm-status.generated { color: #888; }
+
+/* Progress bar */
+.progress-container {
+  padding: 48px 0;
+  text-align: center;
+}
+
+.progress-bar-bg {
+  width: 100%;
+  height: 4px;
+  background: #2a2a2a;
+  border-radius: 2px;
+  overflow: hidden;
+  margin: 20px 0;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: #fff;
+  border-radius: 2px;
+  width: 0%;
+  transition: width .3s ease;
+}
+
+.progress-label {
+  font-size: 14px;
+  color: #888;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Stats */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin: 32px 0;
+}
+
+@media (max-width: 500px) {
+  .stats-grid { grid-template-columns: 1fr; }
+}
+
+.stat-card {
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 10px;
+  padding: 24px 20px;
+  text-align: center;
+  animation: fadeUp .4s ease;
+  animation-fill-mode: both;
+}
+
+.stat-card:nth-child(1) { animation-delay: .1s; }
+.stat-card:nth-child(2) { animation-delay: .2s; }
+.stat-card:nth-child(3) { animation-delay: .3s; }
+
+.stat-value {
+  font-size: 32px;
+  font-weight: 700;
+  color: #fff;
+  font-family: 'Inter', sans-serif;
+}
+
+.stat-label {
+  font-size: 13px;
+  color: #666;
+  margin-top: 4px;
+}
+
+.success-icon {
+  width: 56px;
+  height: 56px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+  font-size: 24px;
+  color: #fff;
+  animation: scaleIn .4s ease;
+}
+
+@keyframes scaleIn {
+  from { transform: scale(0); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.section-label {
+  font-size: 12px;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 16px;
+}
+
+.list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.list-count {
+  font-size: 14px;
+  color: #888;
+}
+
+.list-count strong { color: #fff; }
+</style>
+</head>
+<body>
+
+<a href="../index.html" class="back-link">戻る</a>
+
+<div class="container">
+  <h1>DM営業の自動化</h1>
+  <p class="subtitle">ターゲット選定からDM送信まで、すべて自動化</p>
+
+  <div class="steps">
+    <div class="step-dot active" id="dot-1"></div>
+    <div class="step-dot" id="dot-2"></div>
+    <div class="step-dot" id="dot-3"></div>
+    <div class="step-dot" id="dot-4"></div>
+  </div>
+
+  <!-- Step 1: Target criteria -->
+  <div class="section active" id="step-1">
+    <div class="section-label">Step 1 / ターゲット設定</div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>業種</label>
+        <select id="industry">
+          <option value="IT">IT・テクノロジー</option>
+          <option value="製造">製造業</option>
+          <option value="不動産">不動産</option>
+          <option value="飲食">飲食・フード</option>
+          <option value="医療">医療・ヘルスケア</option>
+          <option value="教育">教育</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>エリア</label>
+        <select id="area">
+          <option value="東京">東京</option>
+          <option value="大阪">大阪</option>
+          <option value="名古屋">名古屋</option>
+          <option value="福岡">福岡</option>
+          <option value="全国">全国</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>従業員規模</label>
+        <select id="size">
+          <option value="1-50">1〜50名</option>
+          <option value="51-200">51〜200名</option>
+          <option value="201-1000">201〜1,000名</option>
+          <option value="1001+">1,001名以上</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>設立年数</label>
+        <select id="age">
+          <option value="1-3">1〜3年</option>
+          <option value="3-10">3〜10年</option>
+          <option value="10+">10年以上</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>自社サービス（DM文面に反映）</label>
+      <input type="text" id="service" value="AI搭載の営業支援ツール" placeholder="例: Webマーケティング支援">
+    </div>
+
+    <button class="btn" onclick="generateList()">リスト作成</button>
+  </div>
+
+  <!-- Step 2: Loading -->
+  <div class="section" id="step-loading">
+    <div class="loading-container">
+      <div class="spinner"></div>
+      <p class="loading-text" id="loading-msg">企業データベースを検索中<span class="dots"></span></p>
+    </div>
+  </div>
+
+  <!-- Step 3: Prospect list -->
+  <div class="section" id="step-2">
+    <div class="section-label">Step 2 / リスト確認・DM作成</div>
+    <div class="list-header">
+      <div class="list-count"><strong id="prospect-count">0</strong>件の企業が見つかりました</div>
+      <button class="btn btn-sm btn-outline" onclick="generateAllDMs()" id="btn-all-dm">全件DM作成</button>
+    </div>
+    <div id="prospect-list"></div>
+    <button class="btn" onclick="goToSend()" id="btn-send" disabled>一括送信</button>
+  </div>
+
+  <!-- Step 4: Sending -->
+  <div class="section" id="step-sending">
+    <div class="progress-container">
+      <div class="section-label">送信中</div>
+      <p class="progress-label" id="send-label">0 / 0 件送信中...</p>
+      <div class="progress-bar-bg">
+        <div class="progress-bar-fill" id="send-bar"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 5: Complete -->
+  <div class="section" id="step-4">
+    <div style="text-align:center; padding: 24px 0;">
+      <div class="success-icon">✓</div>
+      <h2 style="color:#fff; font-size:22px; margin-bottom:4px;">送信完了</h2>
+      <p style="color:#666; font-size:14px;">すべてのDMが正常に送信されました</p>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-value" id="stat-sent">0</div>
+        <div class="stat-label">送信件数</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-rate">0%</div>
+        <div class="stat-label">予想開封率</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-reply">0%</div>
+        <div class="stat-label">予想返信率</div>
+      </div>
+    </div>
+    <button class="btn btn-outline" onclick="resetDemo()">もう一度試す</button>
+  </div>
+</div>
+
+<script>
+const prospects_db = {
+  'IT': [
+    { name: 'ネクストビジョン株式会社', contact: '田中 健太', email: 'tanaka@nextvision.co.jp', role: '代表取締役' },
+    { name: 'クラウドブリッジ合同会社', contact: '佐藤 美咲', email: 'sato@cloudbridge.jp', role: '営業部長' },
+    { name: 'デジタルフォース株式会社', contact: '山田 大輝', email: 'yamada@digitalforce.co.jp', role: 'CTO' },
+    { name: 'スマートリンク株式会社', contact: '鈴木 翔太', email: 'suzuki@smartlink.co.jp', role: '事業開発部長' },
+    { name: 'インフィニテック株式会社', contact: '高橋 愛', email: 'takahashi@infinitech.jp', role: '代表取締役' },
+    { name: 'サイバーノード株式会社', contact: '伊藤 拓海', email: 'ito@cybernode.co.jp', role: 'COO' },
+  ],
+  '製造': [
+    { name: '東洋精密工業株式会社', contact: '中村 誠', email: 'nakamura@toyo-seimitsu.co.jp', role: '工場長' },
+    { name: '三和メタルワークス株式会社', contact: '小林 裕子', email: 'kobayashi@sanwa-mw.co.jp', role: '総務部長' },
+    { name: '富士テクノ株式会社', contact: '渡辺 慎一', email: 'watanabe@fuji-techno.co.jp', role: '代表取締役' },
+    { name: '日本パーツ製造株式会社', contact: '加藤 直樹', email: 'kato@nihon-parts.co.jp', role: '営業本部長' },
+    { name: 'アルファエンジニアリング株式会社', contact: '吉田 真理', email: 'yoshida@alpha-eng.co.jp', role: '事業部長' },
+    { name: '関東工業システム株式会社', contact: '松本 健', email: 'matsumoto@kanto-ks.co.jp', role: '代表取締役' },
+  ],
+  '不動産': [
+    { name: '都心レジデンス株式会社', contact: '石井 隆', email: 'ishii@toshin-r.co.jp', role: '代表取締役' },
+    { name: 'グランドエステート株式会社', contact: '前田 彩香', email: 'maeda@grand-estate.jp', role: '営業部長' },
+    { name: 'ライフプランニング不動産株式会社', contact: '藤田 雄一', email: 'fujita@lifeplanning.co.jp', role: '代表取締役' },
+    { name: '新日本住宅開発株式会社', contact: '井上 結衣', email: 'inoue@shinnihon-jk.co.jp', role: '企画部長' },
+    { name: 'メトロポリタン開発株式会社', contact: '木村 俊介', email: 'kimura@metro-dev.co.jp', role: 'COO' },
+    { name: 'サンライズ不動産株式会社', contact: '清水 恵', email: 'shimizu@sunrise-re.co.jp', role: '支店長' },
+  ],
+  '飲食': [
+    { name: '味楽グループ株式会社', contact: '森 太郎', email: 'mori@miraku-group.co.jp', role: '代表取締役' },
+    { name: 'フードクリエイト株式会社', contact: '岡田 さくら', email: 'okada@foodcreate.co.jp', role: '店舗開発部長' },
+    { name: '和食ダイニング株式会社', contact: '長谷川 勇', email: 'hasegawa@washoku-d.co.jp', role: '代表取締役' },
+    { name: 'グローバルフーズ株式会社', contact: '近藤 麻衣', email: 'kondo@globalfoods.co.jp', role: 'マーケティング部長' },
+    { name: 'トーキョーキッチン株式会社', contact: '阿部 光', email: 'abe@tokyo-kitchen.co.jp', role: '事業部長' },
+    { name: 'フレッシュダイナー株式会社', contact: '坂本 大地', email: 'sakamoto@fresh-diner.co.jp', role: '代表取締役' },
+  ],
+  '医療': [
+    { name: 'メディカルフロンティア株式会社', contact: '遠藤 直美', email: 'endo@med-frontier.co.jp', role: '代表取締役' },
+    { name: 'ヘルスケアイノベーション株式会社', contact: '青木 浩二', email: 'aoki@hc-innovation.co.jp', role: '事業開発部長' },
+    { name: 'ライフサイエンス株式会社', contact: '西村 奈々', email: 'nishimura@lifescience.co.jp', role: 'COO' },
+    { name: 'デジタルクリニック株式会社', contact: '原田 啓介', email: 'harada@digital-clinic.co.jp', role: '代表取締役' },
+    { name: '日本メディテック株式会社', contact: '松田 優花', email: 'matsuda@nihon-meditech.co.jp', role: '営業部長' },
+    { name: 'ケアプラス株式会社', contact: '中島 翼', email: 'nakajima@careplus.co.jp', role: '代表取締役' },
+  ],
+  '教育': [
+    { name: 'エデュテック株式会社', contact: '福田 聡', email: 'fukuda@edutech.co.jp', role: '代表取締役' },
+    { name: 'ラーニングラボ株式会社', contact: '三浦 由美', email: 'miura@learninglab.co.jp', role: '事業部長' },
+    { name: 'ネクストスクール株式会社', contact: '岩崎 大', email: 'iwasaki@next-school.co.jp', role: '代表取締役' },
+    { name: 'グローバルアカデミー株式会社', contact: '横山 真希', email: 'yokoyama@global-academy.co.jp', role: 'マーケティング部長' },
+    { name: 'ブライトフューチャー株式会社', contact: '上田 健一', email: 'ueda@bright-future.co.jp', role: '代表取締役' },
+    { name: 'スタディプラットフォーム株式会社', contact: '小川 理恵', email: 'ogawa@study-pf.co.jp', role: '営業部長' },
+  ],
+};
+
+let currentProspects = [];
+let dmGenerated = {};
+let dmTexts = {};
+
+function showSection(id) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function updateDots(step) {
+  for (let i = 1; i <= 4; i++) {
+    const dot = document.getElementById('dot-' + i);
+    dot.className = 'step-dot';
+    if (i < step) dot.classList.add('done');
+    if (i === step) dot.classList.add('active');
+  }
+}
+
+function generateList() {
+  const industry = document.getElementById('industry').value;
+  const area = document.getElementById('area').value;
+
+  showSection('step-loading');
+  updateDots(1);
+
+  const msgs = [
+    '企業データベースを検索中',
+    `${area}の${industry}企業をフィルタリング中`,
+    '連絡先情報を取得中',
+    'リストを最適化中'
+  ];
+
+  let i = 0;
+  const msgEl = document.getElementById('loading-msg');
+
+  const interval = setInterval(() => {
+    i++;
+    if (i < msgs.length) {
+      msgEl.innerHTML = msgs[i] + '<span class="dots"></span>';
+    }
+  }, 600);
+
+  setTimeout(() => {
+    clearInterval(interval);
+    currentProspects = prospects_db[industry] || prospects_db['IT'];
+    dmGenerated = {};
+    dmTexts = {};
+    renderProspects(area, industry);
+    showSection('step-2');
+    updateDots(2);
+  }, 2600);
+}
+
+function renderProspects(area, industry) {
+  const list = document.getElementById('prospect-list');
+  list.innerHTML = '';
+  document.getElementById('prospect-count').textContent = currentProspects.length;
+  document.getElementById('btn-send').disabled = true;
+
+  currentProspects.forEach((p, idx) => {
+    const card = document.createElement('div');
+    card.className = 'prospect-card';
+    card.id = 'card-' + idx;
+    card.innerHTML = `
+      <div class="prospect-header">
+        <div class="prospect-name">${p.name}</div>
+        <div class="prospect-badge">${industry}</div>
+      </div>
+      <div class="prospect-meta">
+        <span>${p.contact}（${p.role}）</span>
+        <span>${area}</span>
+        <span>${p.email}</span>
+      </div>
+      <div class="prospect-actions">
+        <button class="btn btn-sm btn-outline" onclick="generateDM(${idx})" id="btn-dm-${idx}">DM作成</button>
+        <span class="dm-status" id="status-${idx}"></span>
+      </div>
+      <div class="dm-preview" id="dm-${idx}"></div>
+    `;
+    list.appendChild(card);
+  });
+}
+
+function generateDM(idx) {
+  if (dmGenerated[idx]) return;
+
+  const p = currentProspects[idx];
+  const service = document.getElementById('service').value || 'AI搭載の営業支援ツール';
+  const btn = document.getElementById('btn-dm-' + idx);
+  const preview = document.getElementById('dm-' + idx);
+  const status = document.getElementById('status-' + idx);
+
+  btn.disabled = true;
+  btn.textContent = '作成中...';
+  preview.classList.add('visible');
+  preview.innerHTML = '<span class="dm-cursor"></span>';
+
+  const text = `${p.contact}様
+
+突然のご連絡失礼いたします。
+
+${p.name}様の事業内容を拝見し、ぜひお力になれればと思いご連絡いたしました。
+
+弊社では「${service}」を提供しており、${p.role}である${p.contact}様の業務効率化に貢献できると考えております。
+
+導入企業様では平均40%の業務時間削減を実現しており、御社でも同様の成果が期待できます。
+
+もしよろしければ、15分ほどお時間をいただき、簡単にご説明させていただけますでしょうか。
+
+ご多忙のところ恐縮ですが、ご検討いただけますと幸いです。`;
+
+  dmTexts[idx] = text;
+  let charIdx = 0;
+
+  const typeInterval = setInterval(() => {
+    charIdx += 2;
+    if (charIdx >= text.length) {
+      charIdx = text.length;
+      clearInterval(typeInterval);
+      preview.innerHTML = text.replace(/\n/g, '<br>');
+      btn.textContent = '作成済み';
+      status.textContent = '✓ DM生成完了';
+      status.className = 'dm-status generated';
+      dmGenerated[idx] = true;
+      checkAllGenerated();
+    } else {
+      preview.innerHTML = text.substring(0, charIdx).replace(/\n/g, '<br>') + '<span class="dm-cursor"></span>';
+    }
+  }, 20);
+}
+
+function generateAllDMs() {
+  const btn = document.getElementById('btn-all-dm');
+  btn.disabled = true;
+  btn.textContent = '作成中...';
+
+  let delay = 0;
+  currentProspects.forEach((_, idx) => {
+    if (!dmGenerated[idx]) {
+      setTimeout(() => generateDM(idx), delay);
+      delay += 400;
+    }
+  });
+}
+
+function checkAllGenerated() {
+  const allDone = currentProspects.every((_, idx) => dmGenerated[idx]);
+  if (allDone) {
+    document.getElementById('btn-send').disabled = false;
+    document.getElementById('btn-all-dm').textContent = '全件作成済み';
+  }
+}
+
+function goToSend() {
+  showSection('step-sending');
+  updateDots(3);
+
+  const total = currentProspects.length;
+  let sent = 0;
+  const bar = document.getElementById('send-bar');
+  const label = document.getElementById('send-label');
+
+  const interval = setInterval(() => {
+    sent++;
+    const pct = Math.round((sent / total) * 100);
+    bar.style.width = pct + '%';
+    label.textContent = `${sent} / ${total} 件送信中...`;
+
+    if (sent >= total) {
+      clearInterval(interval);
+      label.textContent = `${total} / ${total} 件送信完了`;
+
+      setTimeout(() => {
+        showSection('step-4');
+        updateDots(4);
+        animateStats(total);
+      }, 600);
+    }
+  }, 500);
+}
+
+function animateStats(total) {
+  const openRate = 45;
+  const replyRate = 12;
+
+  animateNumber('stat-sent', 0, total, '', 400);
+  animateNumber('stat-rate', 0, openRate, '%', 600);
+  animateNumber('stat-reply', 0, replyRate, '%', 800);
+}
+
+function animateNumber(id, from, to, suffix, duration) {
+  const el = document.getElementById(id);
+  const start = performance.now();
+
+  function update(now) {
+    const elapsed = now - start;
+    const progress = Math.min(elapsed / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    const current = Math.round(from + (to - from) * eased);
+    el.textContent = current + suffix;
+    if (progress < 1) requestAnimationFrame(update);
+  }
+
+  requestAnimationFrame(update);
+}
+
+function resetDemo() {
+  dmGenerated = {};
+  dmTexts = {};
+  document.getElementById('btn-all-dm').disabled = false;
+  document.getElementById('btn-all-dm').textContent = '全件DM作成';
+  document.getElementById('send-bar').style.width = '0%';
+  showSection('step-1');
+  updateDots(1);
+}
+</script>
+</body>
+</html>

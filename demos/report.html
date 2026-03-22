@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>日報作成の自動化 - デモ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Noto Sans JP', 'Inter', sans-serif;
+  background: #111;
+  color: #e5e5e5;
+  min-height: 100vh;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: #999; text-decoration: none; transition: color .2s; }
+a:hover { color: #fff; }
+
+.container {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 4rem;
+}
+
+/* Back link */
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  font-size: .875rem;
+  margin-bottom: 2.5rem;
+  color: #777;
+}
+.back-link:hover { color: #fff; }
+.back-link svg { width: 16px; height: 16px; }
+
+/* Header */
+.demo-header {
+  margin-bottom: 2.5rem;
+}
+.demo-header .label {
+  display: inline-block;
+  font-size: .7rem;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: #555;
+  border: 1px solid #333;
+  padding: .2rem .6rem;
+  border-radius: 3px;
+  margin-bottom: .75rem;
+}
+.demo-header h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: .5rem;
+}
+.demo-header p {
+  color: #888;
+  font-size: .95rem;
+}
+
+/* Activity section */
+.section-title {
+  font-size: .8rem;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  margin-bottom: 1rem;
+}
+
+.activity-card {
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.activity-item {
+  display: flex;
+  align-items: flex-start;
+  gap: .75rem;
+  padding: .65rem 0;
+  border-bottom: 1px solid #222;
+}
+.activity-item:last-child { border-bottom: none; }
+
+.activity-time {
+  font-family: 'Inter', monospace;
+  font-size: .85rem;
+  font-weight: 600;
+  color: #fff;
+  min-width: 3.2rem;
+  flex-shrink: 0;
+}
+.activity-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #444;
+  margin-top: .45rem;
+  flex-shrink: 0;
+}
+.activity-content {
+  flex: 1;
+}
+.activity-name {
+  font-size: .9rem;
+  color: #ccc;
+}
+.activity-meta {
+  font-size: .75rem;
+  color: #666;
+  margin-top: .15rem;
+}
+
+/* Generate button */
+.generate-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  width: 100%;
+  padding: .9rem 1.5rem;
+  background: #fff;
+  color: #111;
+  border: none;
+  border-radius: 8px;
+  font-size: .95rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all .2s;
+  margin-bottom: 2rem;
+}
+.generate-btn:hover { background: #ddd; }
+.generate-btn:active { transform: scale(.98); }
+.generate-btn:disabled {
+  background: #333;
+  color: #666;
+  cursor: not-allowed;
+}
+.generate-btn svg { width: 18px; height: 18px; }
+
+/* Report output */
+.report-output {
+  display: none;
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+}
+.report-output.visible { display: block; animation: fadeUp .4s ease; }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.report-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid #2a2a2a;
+}
+.report-header-title {
+  font-size: .85rem;
+  font-weight: 600;
+  color: #fff;
+}
+.report-header-badge {
+  font-size: .7rem;
+  font-weight: 500;
+  color: #4ade80;
+  background: rgba(74,222,128,.1);
+  padding: .15rem .5rem;
+  border-radius: 3px;
+}
+
+.report-body {
+  padding: 1.25rem;
+}
+.report-body .typing-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  background: #fff;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  animation: blink .6s infinite;
+}
+@keyframes blink { 0%,100%{ opacity:1; } 50%{ opacity:0; } }
+
+.report-section {
+  margin-bottom: 1rem;
+}
+.report-section:last-child { margin-bottom: 0; }
+.report-section-label {
+  font-size: .75rem;
+  font-weight: 600;
+  color: #666;
+  margin-bottom: .3rem;
+}
+.report-section-content {
+  font-size: .9rem;
+  color: #ccc;
+  white-space: pre-wrap;
+}
+.report-section-content ul {
+  list-style: none;
+  padding: 0;
+}
+.report-section-content li {
+  position: relative;
+  padding-left: 1rem;
+  margin-bottom: .2rem;
+}
+.report-section-content li::before {
+  content: '・';
+  position: absolute;
+  left: 0;
+  color: #555;
+}
+
+/* Comparison */
+.comparison {
+  display: none;
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+.comparison.visible { display: block; animation: fadeUp .4s ease; }
+
+.comparison-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.comparison-item {
+  text-align: center;
+  padding: .75rem 1.25rem;
+}
+.comparison-label {
+  font-size: .75rem;
+  color: #666;
+  margin-bottom: .25rem;
+}
+.comparison-value {
+  font-family: 'Inter', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #888;
+}
+.comparison-value.highlight {
+  color: #fff;
+}
+.comparison-arrow {
+  font-size: 1.25rem;
+  color: #444;
+}
+.comparison-savings {
+  text-align: center;
+  margin-top: .75rem;
+  font-size: .8rem;
+  color: #4ade80;
+  font-weight: 500;
+}
+
+/* Action buttons */
+.action-buttons {
+  display: none;
+  gap: .75rem;
+  margin-bottom: 2rem;
+}
+.action-buttons.visible { display: flex; animation: fadeUp .4s ease; }
+
+.action-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .4rem;
+  padding: .75rem 1rem;
+  background: transparent;
+  border: 1px solid #333;
+  border-radius: 8px;
+  color: #ccc;
+  font-size: .85rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all .2s;
+}
+.action-btn:hover {
+  border-color: #555;
+  background: #222;
+  color: #fff;
+}
+.action-btn svg { width: 16px; height: 16px; }
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  background: #fff;
+  color: #111;
+  padding: .75rem 1.5rem;
+  border-radius: 8px;
+  font-size: .85rem;
+  font-weight: 500;
+  box-shadow: 0 4px 24px rgba(0,0,0,.5);
+  z-index: 100;
+  opacity: 0;
+  transition: all .3s ease;
+  pointer-events: none;
+}
+.toast.show {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+}
+
+/* Reset button */
+.reset-btn {
+  display: none;
+  margin: 0 auto;
+  padding: .5rem 1.25rem;
+  background: transparent;
+  border: 1px solid #333;
+  border-radius: 6px;
+  color: #666;
+  font-size: .8rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all .2s;
+}
+.reset-btn.visible { display: block; }
+.reset-btn:hover { border-color: #555; color: #aaa; }
+
+@media (max-width: 480px) {
+  .container { padding: 1.25rem 1rem 3rem; }
+  .demo-header h1 { font-size: 1.35rem; }
+  .comparison-item { padding: .5rem .75rem; }
+  .comparison-value { font-size: 1.25rem; }
+  .action-buttons { flex-direction: column; }
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <a href="../index.html" class="back-link">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+    戻る
+  </a>
+
+  <div class="demo-header">
+    <div class="label">Interactive Demo</div>
+    <h1>日報作成の自動化</h1>
+    <p>一日の活動データからAIが日報を自動生成します。</p>
+  </div>
+
+  <!-- Activity Data -->
+  <div class="section-title">本日の活動データ</div>
+  <div class="activity-card">
+    <div class="activity-item">
+      <span class="activity-time">10:00</span>
+      <span class="activity-dot"></span>
+      <div class="activity-content">
+        <div class="activity-name">クライアントA ミーティング</div>
+        <div class="activity-meta">Zoom / 45分</div>
+      </div>
+    </div>
+    <div class="activity-item">
+      <span class="activity-time">11:30</span>
+      <span class="activity-dot"></span>
+      <div class="activity-content">
+        <div class="activity-name">提案書作成</div>
+        <div class="activity-meta">Google Docs / 60分</div>
+      </div>
+    </div>
+    <div class="activity-item">
+      <span class="activity-time">13:00</span>
+      <span class="activity-dot"></span>
+      <div class="activity-content">
+        <div class="activity-name">クライアントB 電話対応</div>
+        <div class="activity-meta">電話 / 20分</div>
+      </div>
+    </div>
+    <div class="activity-item">
+      <span class="activity-time">14:30</span>
+      <span class="activity-dot"></span>
+      <div class="activity-content">
+        <div class="activity-name">SNS投稿作成・スケジュール設定</div>
+        <div class="activity-meta">Buffer / 45分</div>
+      </div>
+    </div>
+    <div class="activity-item">
+      <span class="activity-time">16:00</span>
+      <span class="activity-dot"></span>
+      <div class="activity-content">
+        <div class="activity-name">新規リード5件フォローアップ</div>
+        <div class="activity-meta">HubSpot / 50分</div>
+      </div>
+    </div>
+    <div class="activity-item">
+      <span class="activity-time">17:30</span>
+      <span class="activity-dot"></span>
+      <div class="activity-content">
+        <div class="activity-name">売上データ確認・分析</div>
+        <div class="activity-meta">スプレッドシート / 30分</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Generate Button -->
+  <button class="generate-btn" id="generateBtn" onclick="generateReport()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+    日報を自動生成
+  </button>
+
+  <!-- Report Output -->
+  <div class="report-output" id="reportOutput">
+    <div class="report-header">
+      <span class="report-header-title">生成された日報</span>
+      <span class="report-header-badge" id="reportBadge" style="display:none">AI生成 3秒</span>
+    </div>
+    <div class="report-body" id="reportBody"></div>
+  </div>
+
+  <!-- Comparison -->
+  <div class="comparison" id="comparison">
+    <div class="comparison-row">
+      <div class="comparison-item">
+        <div class="comparison-label">手作業</div>
+        <div class="comparison-value">約30分</div>
+      </div>
+      <div class="comparison-arrow">→</div>
+      <div class="comparison-item">
+        <div class="comparison-label">AI自動生成</div>
+        <div class="comparison-value highlight">3秒</div>
+      </div>
+    </div>
+    <div class="comparison-savings">作業時間を 98% 削減</div>
+  </div>
+
+  <!-- Action Buttons -->
+  <div class="action-buttons" id="actionButtons">
+    <button class="action-btn" onclick="sendAction('Slack')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2a2.5 2.5 0 0 0 0 5H17V4.5A2.5 2.5 0 0 0 14.5 2z"/><path d="M7 5h3.5"/><path d="M2 9.5A2.5 2.5 0 0 0 4.5 12H7V9.5A2.5 2.5 0 0 0 2 9.5z" /><path d="M7 7v3.5"/><path d="M9.5 22a2.5 2.5 0 0 0 0-5H7v2.5A2.5 2.5 0 0 0 9.5 22z"/><path d="M17 19h-3.5"/><path d="M22 14.5a2.5 2.5 0 0 0-2.5-2.5H17v2.5a2.5 2.5 0 0 0 5 0z"/><path d="M17 17v-3.5"/></svg>
+      Slackに送信
+    </button>
+    <button class="action-btn" onclick="sendAction('メール')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+      メールで送信
+    </button>
+  </div>
+
+  <!-- Reset -->
+  <button class="reset-btn" id="resetBtn" onclick="resetDemo()">デモをリセット</button>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+const reportContent = [
+  { label: '日付', text: '2026年3月22日（日）' },
+  { label: '担当者', text: '田中 太郎' },
+  { label: '業務概要', text: '本日はクライアント対応を中心に、提案書作成・SNS運用・リード管理・売上分析まで幅広く業務を遂行。クライアントAとのミーティングでは次期プロジェクトの方向性を確認し、クライアントBへは進捗報告を実施した。' },
+  { label: '成果・進捗', text: '・クライアントA: 次期提案の方向性について合意を獲得\n・提案書ドラフト完成（レビュー待ち）\n・クライアントB: 追加要望をヒアリング、対応方針を策定\n・SNS投稿3件を作成・来週分までスケジュール設定完了\n・新規リード5件にファーストコンタクト実施（うち2件返信あり）\n・月次売上レポートのデータ集計完了' },
+  { label: '明日の予定', text: '・提案書の社内レビュー・修正\n・クライアントB 追加要望の見積作成\n・リード2件のフォローアップ電話\n・週次ミーティング資料準備' },
+  { label: 'KPI', text: '対応クライアント数: 2社\nミーティング数: 1件\n電話対応: 1件\n新規リードフォロー: 5件\nSNS投稿作成: 3件\n総業務時間: 約4時間10分' }
+];
+
+let isGenerating = false;
+
+function generateReport() {
+  if (isGenerating) return;
+  isGenerating = true;
+
+  const btn = document.getElementById('generateBtn');
+  const output = document.getElementById('reportOutput');
+  const body = document.getElementById('reportBody');
+  const badge = document.getElementById('reportBadge');
+
+  btn.disabled = true;
+  btn.innerHTML = '<svg class="spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation:rotate .8s linear infinite"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg> 生成中...';
+
+  output.classList.add('visible');
+  body.innerHTML = '<span class="typing-cursor"></span>';
+
+  const style = document.createElement('style');
+  style.textContent = '@keyframes rotate{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}';
+  document.head.appendChild(style);
+
+  let fullText = '';
+  reportContent.forEach(s => {
+    fullText += '【' + s.label + '】\n' + s.text + '\n\n';
+  });
+  fullText = fullText.trim();
+
+  let idx = 0;
+  const speed = 12;
+
+  function typeChar() {
+    if (idx < fullText.length) {
+      const current = fullText.substring(0, idx + 1);
+      body.innerHTML = formatReport(current) + '<span class="typing-cursor"></span>';
+      idx++;
+      setTimeout(typeChar, speed);
+    } else {
+      body.innerHTML = formatReport(fullText);
+      badge.style.display = '';
+      btn.innerHTML = '生成完了';
+
+      setTimeout(() => {
+        document.getElementById('comparison').classList.add('visible');
+      }, 300);
+      setTimeout(() => {
+        document.getElementById('actionButtons').classList.add('visible');
+      }, 600);
+      setTimeout(() => {
+        document.getElementById('resetBtn').classList.add('visible');
+      }, 800);
+
+      isGenerating = false;
+    }
+  }
+
+  setTimeout(typeChar, 600);
+}
+
+function formatReport(text) {
+  let html = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  html = html.replace(/【(.+?)】/g, '<div class="report-section-label">$1</div>');
+  html = html.replace(/\n/g, '<br>');
+
+  return '<div style="line-height:1.8;font-size:.9rem;color:#ccc">' + html + '</div>';
+}
+
+function sendAction(type) {
+  const toast = document.getElementById('toast');
+  toast.textContent = type + 'に送信しました';
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 2500);
+}
+
+function resetDemo() {
+  const btn = document.getElementById('generateBtn');
+  btn.disabled = false;
+  btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg> 日報を自動生成';
+
+  document.getElementById('reportOutput').classList.remove('visible');
+  document.getElementById('reportBody').innerHTML = '';
+  document.getElementById('reportBadge').style.display = 'none';
+  document.getElementById('comparison').classList.remove('visible');
+  document.getElementById('actionButtons').classList.remove('visible');
+  document.getElementById('resetBtn').classList.remove('visible');
+  isGenerating = false;
+}
+</script>
+</body>
+</html>
